@@ -340,7 +340,7 @@ export default function ITHandbook() {
     } catch (error) {
       console.error('Error fetching cases:', error)
     }
-  }, [categoryFilter, statusFilter, searchTerm, casesPage])
+  }, [categoryFilter, statusFilter, searchTerm])
 
   const fetchWorklogs = useCallback(async (page?: number) => {
     try {
@@ -365,7 +365,7 @@ export default function ITHandbook() {
     } catch (error) {
       console.error('Error fetching worklogs:', error)
     }
-  }, [categoryFilter, statusFilter, searchTerm, worklogsPage])
+  }, [categoryFilter, statusFilter, searchTerm])
 
   const fetchWorklogStats = useCallback(async () => {
     try {
@@ -738,7 +738,7 @@ export default function ITHandbook() {
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious
-                      onClick={() => { if (casesPage > 1) fetchCases(casesPage - 1) }}
+                      onClick={(e) => { e.preventDefault(); if (casesPage > 1) fetchCases(casesPage - 1) }}
                       className={cn(casesPage <= 1 && 'pointer-events-none opacity-50', 'cursor-pointer')}
                     />
                   </PaginationItem>
@@ -746,7 +746,7 @@ export default function ITHandbook() {
                     <PaginationItem key={p}>
                       <PaginationLink
                         isActive={p === casesPage}
-                        onClick={() => fetchCases(p)}
+                        onClick={(e) => { e.preventDefault(); fetchCases(p) }}
                         className="cursor-pointer"
                       >
                         {p}
@@ -755,7 +755,7 @@ export default function ITHandbook() {
                   ))}
                   <PaginationItem>
                     <PaginationNext
-                      onClick={() => { if (casesPage < casesTotalPages) fetchCases(casesPage + 1) }}
+                      onClick={(e) => { e.preventDefault(); if (casesPage < casesTotalPages) fetchCases(casesPage + 1) }}
                       className={cn(casesPage >= casesTotalPages && 'pointer-events-none opacity-50', 'cursor-pointer')}
                     />
                   </PaginationItem>
@@ -1024,7 +1024,7 @@ export default function ITHandbook() {
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious
-                      onClick={() => { if (worklogsPage > 1) fetchWorklogs(worklogsPage - 1) }}
+                      onClick={(e) => { e.preventDefault(); if (worklogsPage > 1) fetchWorklogs(worklogsPage - 1) }}
                       className={cn(worklogsPage <= 1 && 'pointer-events-none opacity-50', 'cursor-pointer')}
                     />
                   </PaginationItem>
@@ -1032,7 +1032,7 @@ export default function ITHandbook() {
                     <PaginationItem key={p}>
                       <PaginationLink
                         isActive={p === worklogsPage}
-                        onClick={() => fetchWorklogs(p)}
+                        onClick={(e) => { e.preventDefault(); fetchWorklogs(p) }}
                         className="cursor-pointer"
                       >
                         {p}
@@ -1041,7 +1041,7 @@ export default function ITHandbook() {
                   ))}
                   <PaginationItem>
                     <PaginationNext
-                      onClick={() => { if (worklogsPage < worklogsTotalPages) fetchWorklogs(worklogsPage + 1) }}
+                      onClick={(e) => { e.preventDefault(); if (worklogsPage < worklogsTotalPages) fetchWorklogs(worklogsPage + 1) }}
                       className={cn(worklogsPage >= worklogsTotalPages && 'pointer-events-none opacity-50', 'cursor-pointer')}
                     />
                   </PaginationItem>
