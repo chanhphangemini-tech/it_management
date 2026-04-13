@@ -1,0 +1,3 @@
+﻿"STT","Mã Nhãn Dây","Loại Cáp","Điểm Nguồn (A)","Điểm Đích (B)","Mô tả"
+"1","NK-FX-01","Cat6","NK-MD-FX-01","NK-RT-FX-01","Modem -> Router NK"
+"2","NK-FX-03","DAC 10G","NK-RT-FX-01","NK-SW-FX-01","Uplink Core 10G"

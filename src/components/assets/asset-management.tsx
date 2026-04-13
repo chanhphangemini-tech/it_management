@@ -16,6 +16,16 @@ import {
   Wifi,
   MoreVertical,
   X,
+  Upload,
+  Server,
+  Network,
+  Camera,
+  Cable,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  Info,
+  Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -152,8 +162,66 @@ const getStatusBadge = (status: string) => {
   )
 }
 
+// Import CSV types
+const importTypes = [
+  { id: 'servers', label: 'Servers', description: 'Danh sách máy chủ vật lý', icon: Server, color: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300', borderColor: 'border-sky-200 dark:border-sky-800' },
+  { id: 'vms', label: 'Máy ảo (VMs)', description: 'Danh sách máy ảo', icon: Monitor, color: 'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300', borderColor: 'border-violet-200 dark:border-violet-800' },
+  { id: 'network', label: 'Thiết bị mạng', description: 'Modem, Router, Switch, UPS', icon: Network, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300', borderColor: 'border-emerald-200 dark:border-emerald-800' },
+  { id: 'camera', label: 'Camera & NVR', description: 'Camera IP và đầu ghi hình', icon: Camera, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', borderColor: 'border-amber-200 dark:border-amber-800' },
+  { id: 'cables', label: 'Cáp mạng', description: 'Dây cáp kết nối thiết bị', icon: Cable, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300', borderColor: 'border-rose-200 dark:border-rose-800' },
+]
+
+// CSV template columns for each type
+const csvTemplates: Record<string, { filename: string; headers: string[]; sample: string }> = {
+  servers: {
+    filename: 'DanhSach_servers_template.csv',
+    headers: ['STT', 'Công ty / Sở hữu', 'Phân loại', 'Khu vực', 'Tên Định Danh', 'Ghi chú', 'Serial Number', 'Model Chi Tiết', 'IP', 'Ngày mua', 'Tình trạng'],
+    sample: '1,CHÍNH NHÂN,server,Tủ Rack,CN-SV-FX-01,Server AD,,Server Rack,192.168.1.1,,Active',
+  },
+  vms: {
+    filename: 'DanhSach_vms_template.csv',
+    headers: ['STT', 'Công ty / Sở hữu', 'Server Vật Lý Chứa', 'Tên Định Danh', 'IP', 'Tình trạng'],
+    sample: '1,CHÍNH NHÂN,CN-SV-FX-01,CN-VM-WEB-01,192.168.1.2,Active',
+  },
+  network: {
+    filename: 'DanhSach_network_template.csv',
+    headers: ['STT', 'Mã Nhãn', 'Phân loại', 'Địa chỉ IP', 'Vị trí', 'Mô tả'],
+    sample: '1,CN-RT-FX-01,router,192.168.1.254,Tủ Rack,Router Tổng',
+  },
+  camera: {
+    filename: 'DanhSach_camera_template.csv',
+    headers: ['STT', 'Mã Nhãn', 'Phân loại', 'Địa chỉ IP', 'Vị trí', 'Mô tả'],
+    sample: '1,NKC-IPC-F1-01,camera,,Tầng 1,Camera IP Tầng 1',
+  },
+  cables: {
+    filename: 'DanhSach_cables_template.csv',
+    headers: ['STT', 'Mã Nhãn Dây', 'Loại Cáp', 'Điểm Nguồn (A)', 'Điểm Đích (B)', 'Mô tả'],
+    sample: '1,NK-FX-01,Cat6,NK-MD-FX-01,NK-RT-FX-01,Modem -> Router NK',
+  },
+}
+
+function downloadTemplate(type: string) {
+  const tpl = csvTemplates[type]
+  if (!tpl) return
+  const csv = [tpl.headers.join(','), tpl.sample].join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = tpl.filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function AssetManagement() {
   const [activeTab, setActiveTab] = useState('assets')
+  
+  // Import state
+  const [importType, setImportType] = useState('servers')
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
+  const [importError, setImportError] = useState('')
   
   // Assets state
   const [assets, setAssets] = useState<Asset[]>([])
@@ -424,6 +492,10 @@ export function AssetManagement() {
             <FolderOpen className="h-4 w-4 mr-2" />
             Danh mục
           </TabsTrigger>
+          <TabsTrigger value="import" className="data-[state=active]:bg-background">
+            <Upload className="h-4 w-4 mr-2" />
+            Import CSV
+          </TabsTrigger>
         </TabsList>
 
         {/* Assets Tab */}
@@ -691,6 +763,182 @@ export function AssetManagement() {
               })}
             </div>
           )}
+        </TabsContent>
+
+        {/* Import CSV Tab */}
+        <TabsContent value="import" className="mt-0 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Import dữ liệu từ CSV
+              </CardTitle>
+              <CardDescription>
+                Chọn loại dữ liệu và tải file CSV lên để import vào hệ thống. Các bản ghi trùng mã sẽ được bỏ qua.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Import Type Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">1. Chọn loại dữ liệu</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {importTypes.map((t) => {
+                    const Icon = t.icon
+                    const isSelected = importType === t.id
+                    return (
+                      <Card
+                        key={t.id}
+                        className={cn(
+                          'cursor-pointer transition-all hover:shadow-md border-2',
+                          isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:border-muted-foreground/20'
+                        )}
+                        onClick={() => {
+                          setImportType(t.id)
+                          setImportFile(null)
+                          setImportResult(null)
+                          setImportError('')
+                        }}
+                      >
+                        <CardContent className="p-3 flex items-start gap-3">
+                          <div className={cn('p-2 rounded-lg', t.color)}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{t.label}</p>
+                            <p className="text-xs text-muted-foreground">{t.description}</p>
+                          </div>
+                          {isSelected && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Template Download */}
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground flex-1">
+                  Tải template CSV mẫu để điền đúng định dạng:
+                </span>
+                <Button variant="outline" size="sm" onClick={() => downloadTemplate(importType)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Template {importTypes.find(t => t.id === importType)?.label}
+                </Button>
+              </div>
+
+              {/* File Upload */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">2. Chọn file CSV</Label>
+                <div
+                  className={cn(
+                    'border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer',
+                    importFile ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
+                  )}
+                  onClick={() => document.getElementById('csv-file-input')?.click()}
+                >
+                  <input
+                    id="csv-file-input"
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null
+                      setImportFile(file)
+                      setImportResult(null)
+                      setImportError('')
+                    }}
+                  />
+                  {importFile ? (
+                    <div className="space-y-1">
+                      <CheckCircle2 className="h-8 w-8 text-primary mx-auto" />
+                      <p className="text-sm font-medium">{importFile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(importFile.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Upload className="h-8 w-8 text-muted-foreground mx-auto" />
+                      <p className="text-sm text-muted-foreground">
+                        Nhấn hoặc kéo thả file CSV vào đây
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Error */}
+              {importError && (
+                <div className="flex items-start gap-2 p-3 text-sm text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  {importError}
+                </div>
+              )}
+
+              {/* Result */}
+              {importResult && (
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="font-medium text-emerald-700 dark:text-emerald-300">Import thành công!</span>
+                  </div>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      {importResult.imported} bản ghi mới
+                    </span>
+                    {importResult.skipped > 0 && (
+                      <span className="text-muted-foreground">
+                        {importResult.skipped} bản ghi trùng (bỏ qua)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Import Button */}
+              <Button
+                className="w-full sm:w-auto"
+                disabled={!importFile || importing}
+                onClick={async () => {
+                  if (!importFile) return
+                  setImporting(true)
+                  setImportResult(null)
+                  setImportError('')
+                  try {
+                    const formData = new FormData()
+                    formData.append('file', importFile)
+                    formData.append('type', importType)
+                    const res = await fetch('/api/import/csv', { method: 'POST', body: formData })
+                    const data = await res.json()
+                    if (data.success) {
+                      setImportResult(data.data)
+                      fetchAssets()
+                      fetchCategories()
+                    } else {
+                      setImportError(data.error || 'Import thất bại')
+                    }
+                  } catch {
+                    setImportError('Lỗi kết nối server')
+                  } finally {
+                    setImporting(false)
+                  }
+                }}
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Đang import...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import {importTypes.find(t => t.id === importType)?.label}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
