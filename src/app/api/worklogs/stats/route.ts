@@ -26,11 +26,11 @@ export async function GET() {
       }),
       db.$queryRaw<Array<{ month: string; count: bigint }>>`
         SELECT 
-          substr(date, 1, 7) as month,
+          strftime('%Y-%m', date / 1000, 'unixepoch') as month,
           COUNT(*) as count
         FROM worklogs
-        WHERE date IS NOT NULL AND date != ''
-        GROUP BY substr(date, 1, 7)
+        WHERE date IS NOT NULL AND date != 0
+        GROUP BY strftime('%Y-%m', date / 1000, 'unixepoch')
         ORDER BY month DESC
         LIMIT 6
       `,

@@ -263,6 +263,12 @@ const getWorkStatusLabel = (workStatus: string) => {
   return labels[workStatus] || workStatus
 }
 
+const formatMonthLabel = (month: string) => {
+  // month format: "2025-01"
+  const [year, m] = month.split('-')
+  return `Tháng ${parseInt(m)}/${year}`
+}
+
 export default function ITHandbook() {
   // State
   const [activeTab, setActiveTab] = useState('cases')
@@ -892,7 +898,7 @@ export default function ITHandbook() {
                       return (
                         <div key={item.month} className="space-y-1">
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">{item.month}</span>
+                            <span className="text-muted-foreground">{formatMonthLabel(item.month)}</span>
                             <span className="font-medium">{item.count}</span>
                           </div>
                           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
