@@ -878,7 +878,7 @@ export default function ITHandbook() {
 
       {/* Case Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="sm:max-w-7xl max-w-[95vw] w-[95vw] h-[85vh] overflow-hidden flex flex-col p-0 gap-0 shadow-2xl">
+        <DialogContent className="max-w-full w-full h-full inset-0 translate-x-0 translate-y-0 top-0 left-0 rounded-none overflow-hidden flex flex-col p-0 gap-0 shadow-2xl sm:rounded-lg sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-[96vw] sm:h-[94vh]" showCloseButton={false}>
           <DialogHeader className="p-6 pb-4 border-b bg-muted/20">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
@@ -920,6 +920,14 @@ export default function ITHandbook() {
                 >
                   <Edit2 className="h-3.5 w-3.5" />
                   Chỉnh sửa
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() => setDetailDialogOpen(false)}
+                >
+                  <XCircle className="h-4 w-4" />
                 </Button>
               </div>
             </div>
