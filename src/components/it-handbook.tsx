@@ -16,7 +16,6 @@ import {
   User,
   Calendar,
   Tag,
-  ChevronRight,
   Filter,
   Eye,
   Info,
@@ -24,6 +23,9 @@ import {
   Stethoscope,
   Copy,
   Check,
+  Download,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -67,7 +69,6 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  PaginationEllipsis,
 } from '@/components/ui/pagination'
 
 // Types
@@ -106,6 +107,15 @@ interface PaginationInfo {
   limit: number
   total: number
   totalPages: number
+}
+
+interface WorklogStats {
+  total: number
+  byCategory: { category: string; _count: number }[]
+  byStatus: { status: string; _count: number }[]
+  byPriority: { priority: string; _count: number }[]
+  byWorkStatus: { workStatus: string; _count: number }[]
+  byMonth: { month: string; count: number }[]
 }
 
 interface WorklogItem {
@@ -273,6 +283,9 @@ export default function ITHandbook() {
   const [worklogsTotalPages, setWorklogsTotalPages] = useState(1)
   const PAGE_LIMIT = 10
 
+  // Worklog stats state
+  const [worklogStats, setWorklogStats] = useState<WorklogStats | null>(null)
+
   // Dialog states
   const [caseDialogOpen, setCaseDialogOpen] = useState(false)
   const [worklogDialogOpen, setWorklogDialogOpen] = useState(false)
@@ -354,9 +367,27 @@ export default function ITHandbook() {
     }
   }, [categoryFilter, statusFilter, searchTerm, worklogsPage])
 
+  const fetchWorklogStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/worklogs/stats')
+      const data = await res.json()
+      if (data.success) {
+        setWorklogStats(data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching worklog stats:', error)
+    }
+  }, [])
+
+  const handleExportWorklogs = useCallback(() => {
+    toast.success('Đang xuất dữ liệu...')
+    window.open('/api/worklogs/export', '_blank')
+  }, [])
+
   useEffect(() => {
     fetchCategories()
-  }, [fetchCategories])
+    fetchWorklogStats()
+  }, [fetchCategories, fetchWorklogStats])
 
   // Reset page when filters change
   useEffect(() => {
@@ -469,6 +500,7 @@ export default function ITHandbook() {
       if (data.success) {
         setWorklogDialogOpen(false)
         fetchWorklogs()
+        fetchWorklogStats()
       }
     } catch (error) {
       console.error('Error saving worklog:', error)
@@ -496,6 +528,7 @@ export default function ITHandbook() {
           fetchCases()
         } else {
           fetchWorklogs()
+          fetchWorklogStats()
         }
       }
     } catch (error) {
@@ -592,6 +625,12 @@ export default function ITHandbook() {
                 <Plus className="h-4 w-4 mr-2" />
                 {activeTab === 'cases' ? 'Thêm Case' : 'Thêm Worklog'}
               </Button>
+              {activeTab === 'worklogs' && (
+                <Button variant="outline" onClick={handleExportWorklogs}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Xuất CSV
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -728,6 +767,149 @@ export default function ITHandbook() {
 
         {/* Worklogs Tab */}
         <TabsContent value="worklogs" className="mt-0">
+          {/* Statistics Dashboard */}
+          {worklogStats && !loading && (
+            <div className="mb-6 space-y-4">
+              <div className="flex items-center gap-2 text-lg font-semibold">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Thống kê Worklogs
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50">
+                  <CardContent className="p-4 flex flex-col items-center text-center">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mb-1" />
+                    <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                      {worklogStats.byWorkStatus.find(s => s.workStatus === 'completed')?._count || 0}
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1">Hoàn thành</span>
+                  </CardContent>
+                </Card>
+                <Card className="bg-sky-50/50 dark:bg-sky-950/20 border-sky-100 dark:border-sky-900/50">
+                  <CardContent className="p-4 flex flex-col items-center text-center">
+                    <Clock className="h-6 w-6 text-sky-500 mb-1" />
+                    <span className="text-2xl font-bold text-sky-700 dark:text-sky-300">
+                      {worklogStats.byWorkStatus.find(s => s.workStatus === 'in_progress')?._count || 0}
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1">Đang xử lý</span>
+                  </CardContent>
+                </Card>
+                <Card className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/50">
+                  <CardContent className="p-4 flex flex-col items-center text-center">
+                    <AlertCircle className="h-6 w-6 text-amber-500 mb-1" />
+                    <span className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                      {worklogStats.byWorkStatus.find(s => s.workStatus === 'pending')?._count || 0}
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1">Chờ xử lý</span>
+                  </CardContent>
+                </Card>
+                <Card className="bg-rose-50/50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/50">
+                  <CardContent className="p-4 flex flex-col items-center text-center">
+                    <XCircle className="h-6 w-6 text-rose-500 mb-1" />
+                    <span className="text-2xl font-bold text-rose-700 dark:text-rose-300">
+                      {worklogStats.byWorkStatus.find(s => s.workStatus === 'failed')?._count || 0}
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1">Thất bại</span>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Detail Stats Grid */}
+              <div className="grid gap-4 sm:grid-cols-3">
+                {/* By Category */}
+                <Card>
+                  <CardHeader className="pb-2 px-4 pt-4">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-muted-foreground" />
+                      Theo danh mục
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-2">
+                    {worklogStats.byCategory.slice(0, 5).map((item) => {
+                      const pct = worklogStats.total > 0 ? Math.round((item._count / worklogStats.total) * 100) : 0
+                      return (
+                        <div key={item.category} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">{getCategoryName(item.category!)}</span>
+                            <span className="font-medium">{item._count} ({pct}%)</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-primary/70 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {worklogStats.byCategory.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Chưa có dữ liệu</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* By Priority */}
+                <Card>
+                  <CardHeader className="pb-2 px-4 pt-4">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                      Theo độ ưu tiên
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-2">
+                    {worklogStats.byPriority.map((item) => {
+                      const pct = worklogStats.total > 0 ? Math.round((item._count / worklogStats.total) * 100) : 0
+                      return (
+                        <div key={item.priority} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">{getPriorityLabel(item.priority)}</span>
+                            <span className="font-medium">{item._count} ({pct}%)</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className={cn(
+                              'h-full rounded-full transition-all',
+                              item.priority === 'Critical' ? 'bg-rose-500' :
+                              item.priority === 'High' ? 'bg-amber-500' :
+                              item.priority === 'Medium' ? 'bg-sky-500' : 'bg-slate-400'
+                            )} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </CardContent>
+                </Card>
+
+                {/* By Month */}
+                <Card>
+                  <CardHeader className="pb-2 px-4 pt-4">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      Theo tháng
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-2">
+                    {worklogStats.byMonth.map((item) => {
+                      const maxCount = Math.max(...worklogStats.byMonth.map(m => m.count), 1)
+                      const pct = Math.round((item.count / maxCount) * 100)
+                      return (
+                        <div key={item.month} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">{item.month}</span>
+                            <span className="font-medium">{item.count}</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-primary/70 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {worklogStats.byMonth.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Chưa có dữ liệu</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
