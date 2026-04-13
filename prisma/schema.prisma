@@ -382,6 +382,41 @@ model NetTopology {
   @@map("net_topology")
 }
 
+// ==================== WORKFLOW MATRIX ====================
+
+model WorkflowColumn {
+  id          Int      @id @default(autoincrement())
+  title       String   // e.g., "SLA & HOTLINE"
+  subtitle    String   // e.g., "Phản Ứng Nhanh"
+  description String?  // e.g., "Trực tiếp hỗ trợ người dùng & SME"
+  color       String   @default("slate") // rose, amber, emerald, slate, sky, violet
+  target      String?  // e.g., "Xử lý 100% Ticket & Duy trì SLA"
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  items WorkflowItem[]
+
+  @@map("workflow_columns")
+}
+
+model WorkflowItem {
+  id          Int      @id @default(autoincrement())
+  columnId    Int
+  title       String
+  description String?
+  timeEstimate String? // e.g., "1-2h/ngày"
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  column WorkflowColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_items")
+}
+
 // ==================== SOLUTIONS ====================
 
 model SolutionDocument {

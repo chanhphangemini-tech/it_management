@@ -333,6 +333,80 @@ export async function POST() {
     }
     console.log('Seeded net cables')
 
+    // Seed workflow matrix (only if no columns exist yet)
+    const existingWorkflowCount = await db.workflowColumn.count()
+    if (existingWorkflowCount === 0) {
+      const workflowColumnsData = [
+        {
+          title: 'SLA & HOTLINE',
+          subtitle: 'Phản Ứng Nhanh',
+          description: 'Trực tiếp hỗ trợ người dùng & SME',
+          color: 'rose',
+          target: 'Xử lý 100% Ticket & Duy trì SLA',
+          sortOrder: 0,
+          items: {
+            create: [
+              { title: 'IT Helpdesk Nội Bộ', description: 'Tiếp nhận báo lỗi, xử lý lỗi Mail/IP Phone, Software, Hardware cài đặt phần mềm & hỗ trợ kỹ thuật trực tiếp.', timeEstimate: '1-2h/ngày', sortOrder: 0 },
+              { title: 'Setup & Cài Đặt Hệ Thống', description: 'Cài đặt OS, tủ driver, cấu hình phân quyền & bảo mật cho thiết bị cấp phát mới hoặc xử lý lỗi.', timeEstimate: '2-3h/máy', sortOrder: 1 },
+              { title: 'Hotline SME (Cuối Quý)', description: 'Trực tiếp dây nóng Chánh Nhân/Nguyên Kim, hướng dẫn xử lý kỹ thuật từ xa cho khách hàng.', timeEstimate: '2-3h/ngày', sortOrder: 2 },
+            ],
+          },
+        },
+        {
+          title: 'HẠ TẦNG & LOG',
+          subtitle: 'Vận Hành Hệ Thống',
+          description: 'Duy trì sự ổn định của Công Ty',
+          color: 'amber',
+          target: 'Tính sẵn sàng hệ thống 99.9%',
+          sortOrder: 1,
+          items: {
+            create: [
+              { title: 'Backup & Security Dashboard', description: 'Kiểm tra kết quả backup Veeam, Server, Database. Giám sát trạng thái Camera & đầu ghi tập trung.', timeEstimate: '45p/ngày', sortOrder: 0 },
+              { title: 'Bảo Hành Máy In HP A3 5 số', description: 'Điều phối HP ủy quyền, order linh kiện, điều phối case, quản trị case & xuất chứng từ bàn giao PDF.', timeEstimate: '1-1.5h/ngày', sortOrder: 1 },
+              { title: 'Hậu Cần Phòng Hợp', description: 'Setup Laptop, máy chiếu, TV, âm thanh hội nghị. Đảm bảo Internet ổn định cho các buổi họp trực tuyến.', timeEstimate: 'T2 & T7', sortOrder: 2 },
+            ],
+          },
+        },
+        {
+          title: 'PRESALE & BIZ',
+          subtitle: 'Giải Pháp SME',
+          description: 'Thương mại hóa & Tư vấn giải pháp',
+          color: 'emerald',
+          target: 'Đề xuất chuẩn & Giải pháp trọn gói',
+          sortOrder: 2,
+          items: {
+            create: [
+              { title: 'Nghiên Cứu SME Bundle', description: 'Xây dựng phương án kỹ thuật, cấu hình thiết bị mẫu & đánh giá khả năng tích hợp dựa trên văn bản của 3 công ty NKC.', timeEstimate: '4-5h/ngày', sortOrder: 0 },
+              { title: 'Procurement (Đề xuất)', description: 'Đánh giá nhà cung cấp mới, thẩm định cấu hình & phù hợp HCNS dự kiến phi mua sắm/sửa chữa thiết bị tiêu dùng.', timeEstimate: '30-60p/ngày', sortOrder: 1 },
+              { title: 'Email Admin (Đầu Quý)', description: 'Xuất & lưu trữ dữ liệu Mail BGD sang định dạng PST. Giải phóng dung lượng data mail.', timeEstimate: '3-4h/đợt', sortOrder: 2 },
+            ],
+          },
+        },
+        {
+          title: 'PERIODIC SECURITY',
+          subtitle: 'Bảo Trì & An Ninh',
+          description: 'Kiểm soát rủi ro định kỳ',
+          color: 'slate',
+          target: 'An toàn hệ thống 100%',
+          sortOrder: 3,
+          items: {
+            create: [
+              { title: 'Bảo Trì Hạ Tầng Toàn Diện', description: 'Vệ sinh, bảo trì phần cứng toàn bộ dàn máy tính, Server & hệ thống máy in của toàn công ty.', timeEstimate: '6 tháng/lần', sortOrder: 0 },
+              { title: 'Kiểm Tra Báo Động & UPS', description: 'Kiểm tra hệ thống báo động cửa, UPS & nguồn dự phòng. Thiết lập chế độ cảnh báo cho kỳ nghỉ dài.', timeEstimate: 'Trước Lễ', sortOrder: 1 },
+              { title: 'Xác Thực Dự Phòng', description: 'Kiểm tra trang thiết bị và khả năng chịu tải của UPS và tính sẵn sàng.', timeEstimate: 'Trước Lễ', sortOrder: 2 },
+            ],
+          },
+        },
+      ]
+
+      for (const wc of workflowColumnsData) {
+        await db.workflowColumn.create({ data: wc })
+      }
+      console.log('Seeded workflow columns')
+    } else {
+      console.log('Workflow columns already exist, skipping seed')
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Đã nạp dữ liệu thành công!',
@@ -345,6 +419,7 @@ export async function POST() {
         emailTemplates: emailTemplates.length,
         netDevices: netDevices.length,
         netCables: netCables.length,
+        workflowColumns: existingWorkflowCount === 0 ? workflowColumnsData.length : existingWorkflowCount,
       },
     })
   } catch (error) {
@@ -360,6 +435,6 @@ export async function GET() {
   return NextResponse.json({
     message: 'Sử dụng phương thức POST để nạp dữ liệu vào cơ sở dữ liệu',
     endpoint: 'POST /api/seed',
-    tables: ['users', 'categories', 'cases', 'work_logs', 'asset_categories', 'email_templates', 'net_devices', 'net_cables'],
+    tables: ['users', 'categories', 'cases', 'work_logs', 'asset_categories', 'email_templates', 'net_devices', 'net_cables', 'workflow_columns', 'workflow_items'],
   })
 }
