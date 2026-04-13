@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// GET /api/worklogs - Get all worklogs with optional filters
+// GET /api/worklogs - Get worklogs with optional filters and pagination
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
 
     const where: Record<string, unknown> = {};
 
@@ -37,31 +39,42 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const worklogs = await db.worklog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-            email: true,
+    const [worklogs, total] = await Promise.all([
+      db.worklog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              email: true,
+            },
+          },
+          caseRel: {
+            select: {
+              id: true,
+              title: true,
+              category: true,
+            },
           },
         },
-        caseRel: {
-          select: {
-            id: true,
-            title: true,
-            category: true,
-          },
-        },
-      },
-    });
+      }),
+      db.worklog.count({ where }),
+    ]);
 
     return NextResponse.json({
       success: true,
       data: worklogs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("Error fetching worklogs:", error);

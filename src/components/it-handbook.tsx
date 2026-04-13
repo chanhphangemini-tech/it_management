@@ -59,8 +59,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination'
 
 // Types
 interface Category {
@@ -91,6 +99,13 @@ interface CaseItem {
   _count?: {
     worklogs: number
   }
+}
+
+interface PaginationInfo {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
 }
 
 interface WorklogItem {
@@ -249,6 +264,15 @@ export default function ITHandbook() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
+  // Pagination state
+  const [casesPage, setCasesPage] = useState(1)
+  const [casesTotal, setCasesTotal] = useState(0)
+  const [casesTotalPages, setCasesTotalPages] = useState(1)
+  const [worklogsPage, setWorklogsPage] = useState(1)
+  const [worklogsTotal, setWorklogsTotal] = useState(0)
+  const [worklogsTotalPages, setWorklogsTotalPages] = useState(1)
+  const PAGE_LIMIT = 10
+
   // Dialog states
   const [caseDialogOpen, setCaseDialogOpen] = useState(false)
   const [worklogDialogOpen, setWorklogDialogOpen] = useState(false)
@@ -280,50 +304,72 @@ export default function ITHandbook() {
     }
   }, [])
 
-  const fetchCases = useCallback(async () => {
+  const fetchCases = useCallback(async (page?: number) => {
     try {
+      const p = page ?? casesPage
       const params = new URLSearchParams()
       if (categoryFilter !== 'all') params.append('category', categoryFilter)
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (searchTerm) params.append('search', searchTerm)
+      params.append('page', String(p))
+      params.append('limit', String(PAGE_LIMIT))
 
       const res = await fetch(`/api/cases?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
         setCases(data.data)
+        if (data.pagination) {
+          setCasesTotal(data.pagination.total)
+          setCasesTotalPages(data.pagination.totalPages)
+          setCasesPage(data.pagination.page)
+        }
       }
     } catch (error) {
       console.error('Error fetching cases:', error)
     }
-  }, [categoryFilter, statusFilter, searchTerm])
+  }, [categoryFilter, statusFilter, searchTerm, casesPage])
 
-  const fetchWorklogs = useCallback(async () => {
+  const fetchWorklogs = useCallback(async (page?: number) => {
     try {
+      const p = page ?? worklogsPage
       const params = new URLSearchParams()
       if (categoryFilter !== 'all') params.append('category', categoryFilter)
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (searchTerm) params.append('search', searchTerm)
+      params.append('page', String(p))
+      params.append('limit', String(PAGE_LIMIT))
 
       const res = await fetch(`/api/worklogs?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
         setWorklogs(data.data)
+        if (data.pagination) {
+          setWorklogsTotal(data.pagination.total)
+          setWorklogsTotalPages(data.pagination.totalPages)
+          setWorklogsPage(data.pagination.page)
+        }
       }
     } catch (error) {
       console.error('Error fetching worklogs:', error)
     }
-  }, [categoryFilter, statusFilter, searchTerm])
+  }, [categoryFilter, statusFilter, searchTerm, worklogsPage])
 
   useEffect(() => {
     fetchCategories()
   }, [fetchCategories])
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCasesPage(1)
+    setWorklogsPage(1)
+  }, [categoryFilter, statusFilter, searchTerm])
+
   useEffect(() => {
     setLoading(true)
     if (activeTab === 'cases') {
-      fetchCases().finally(() => setLoading(false))
+      fetchCases(1).finally(() => setLoading(false))
     } else {
-      fetchWorklogs().finally(() => setLoading(false))
+      fetchWorklogs(1).finally(() => setLoading(false))
     }
   }, [activeTab, fetchCases, fetchWorklogs])
 
@@ -485,11 +531,11 @@ export default function ITHandbook() {
         <TabsList className="mb-4 flex-wrap h-auto gap-1 p-1 bg-muted/50">
           <TabsTrigger value="cases" className="data-[state=active]:bg-background">
             <FileText className="h-4 w-4 mr-2" />
-            Cases ({cases.length})
+            Cases ({casesTotal})
           </TabsTrigger>
           <TabsTrigger value="worklogs" className="data-[state=active]:bg-background">
             <Clock className="h-4 w-4 mr-2" />
-            Worklogs ({worklogs.length})
+            Worklogs ({worklogsTotal})
           </TabsTrigger>
         </TabsList>
 
@@ -644,6 +690,40 @@ export default function ITHandbook() {
               })}
             </div>
           )}
+          {casesTotalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Trang {casesPage}/{casesTotalPages} ({casesTotal} kết quả)
+              </span>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => { if (casesPage > 1) fetchCases(casesPage - 1) }}
+                      className={cn(casesPage <= 1 && 'pointer-events-none opacity-50', 'cursor-pointer')}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: casesTotalPages }, (_, i) => i + 1).map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        isActive={p === casesPage}
+                        onClick={() => fetchCases(p)}
+                        className="cursor-pointer"
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => { if (casesPage < casesTotalPages) fetchCases(casesPage + 1) }}
+                      className={cn(casesPage >= casesTotalPages && 'pointer-events-none opacity-50', 'cursor-pointer')}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </TabsContent>
 
         {/* Worklogs Tab */}
@@ -751,6 +831,40 @@ export default function ITHandbook() {
                   </Card>
                 )
               })}
+            </div>
+          )}
+          {worklogsTotalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Trang {worklogsPage}/{worklogsTotalPages} ({worklogsTotal} kết quả)
+              </span>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => { if (worklogsPage > 1) fetchWorklogs(worklogsPage - 1) }}
+                      className={cn(worklogsPage <= 1 && 'pointer-events-none opacity-50', 'cursor-pointer')}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: worklogsTotalPages }, (_, i) => i + 1).map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        isActive={p === worklogsPage}
+                        onClick={() => fetchWorklogs(p)}
+                        className="cursor-pointer"
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => { if (worklogsPage < worklogsTotalPages) fetchWorklogs(worklogsPage + 1) }}
+                      className={cn(worklogsPage >= worklogsTotalPages && 'pointer-events-none opacity-50', 'cursor-pointer')}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </TabsContent>
