@@ -1,8 +1,5 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// IT Management System - Restructured from PostgreSQL to SQLite
 
 generator client {
   provider = "prisma-client-js"
@@ -10,23 +7,390 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:../db/it_management.db"
 }
+
+// ==================== USERS & PERMISSIONS ====================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int       @id @default(autoincrement())
+  username      String    @unique
+  email         String?   @unique
+  passwordHash  String
+  fullName      String?
+  role          String    @default("user") // admin, user
+  isActive      Boolean   @default(true)
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  userPermissions       UserPermission[]
+  emailTemplates        EmailTemplate[]
+  assets                Asset[]
+  inventoryPeriods      InventoryPeriod[]
+  groupAssignments      GroupAssignment[]
+  worklogs              Worklog[]
+
+  @@map("users")
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+model Permission {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  description String?
+  category    String?  // admin, tools, reports
+  createdAt   DateTime @default(now())
+
+  // Relations
+  userPermissions UserPermission[]
+
+  @@map("permissions")
+}
+
+model UserPermission {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  permissionId Int
+  grantedBy    Int?
+  grantedAt    DateTime  @default(now())
+
+  // Relations
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+// ==================== CATEGORIES & CASES ====================
+
+model Category {
+  code        String   @id
+  name        String
+  icon        String?
+  description String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  cases    Case[]
+  workLogs WorkLog[]
+
+  @@map("categories")
+}
+
+model Case {
+  id          Int      @id @default(autoincrement())
+  title       String
+  category    String?
+  description String?
+  symptoms    String?
+  rootCause   String?
+  solution    String?
+  prevention  String?
+  status      String   @default("Active") // Active, Archived, Draft
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  categoryRel Category?  @relation(fields: [category], references: [code])
+  worklogs    Worklog[]
+
+  @@map("cases")
+}
+
+// ==================== WORK LOGS ====================
+
+model WorkLog {
+  id                Int      @id @default(autoincrement())
+  title             String
+  category          String?
+  date              DateTime?
+  content           String?
+  tags              String?
+  status            String   @default("Active")
+  caseTitle         String?
+  clientName        String?
+  issueDescription  String?
+  solutionApplied   String?
+  timeSpent         String?
+  result            String   @default("Resolved")
+  priority          String   @default("Medium")
+  workStatus        String   @default("Completed")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  categoryRel Category? @relation(fields: [category], references: [code])
+
+  @@map("work_logs")
+}
+
+model Worklog {
+  id               Int      @id @default(autoincrement())
+  userId           Int?
+  caseId           Int?
+  title            String
+  description      String?
+  timeSpent        String?
+  status           String   @default("in_progress")
+  success          Boolean  @default(false)
+  category         String?
+  tags             String   @default("[]") // JSON array as string
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  clientName       String?
+  caseTitle        String?
+  issueDescription String?
+  solutionApplied  String?
+  result           String?
+  priority         String   @default("Medium")
+  workStatus       String   @default("completed")
+  date             DateTime?
+
+  // Relations
+  user    User?    @relation(fields: [userId], references: [id])
+  caseRel Case?    @relation(fields: [caseId], references: [id])
+
+  @@map("worklogs")
+}
+
+// ==================== ASSETS ====================
+
+model AssetCategory {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  assets Asset[]
+
+  @@map("asset_categories")
+}
+
+model Asset {
+  id            Int      @id @default(autoincrement())
+  assetCode     String   @unique
+  name          String
+  categoryId    Int?
+  description   String?
+  serialNumber  String?
+  model         String?
+  purchaseDate  DateTime?
+  purchasePrice Float?
+  status        String   @default("available")
+  location      String?
+  notes         String?
+  createdBy     Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  category   AssetCategory? @relation(fields: [categoryId], references: [id])
+  creator    User?          @relation(fields: [createdBy], references: [id])
+  assignments AssetAssignment[]
+  transactions AssetTransaction[]
+
+  @@map("assets")
+}
+
+model AssetAssignment {
+  id                 Int       @id @default(autoincrement())
+  inventoryPeriodId  Int?
+  assetId            Int?
+  assignedTo         Int?
+  assignedBy         Int?
+  assignedAt         DateTime  @default(now())
+  expectedReturnDate DateTime?
+  status             String    @default("assigned")
+  notes              String?
+
+  // Relations
+  asset Asset? @relation(fields: [assetId], references: [id])
+
+  @@map("asset_assignments")
+}
+
+model AssetTransaction {
+  id                Int      @id @default(autoincrement())
+  assetId           Int?
+  inventoryPeriodId Int?
+  transactionType   String
+  fromUser          Int?
+  toUser            Int?
+  processedBy       Int?
+  processedAt       DateTime @default(now())
+  notes             String?
+  location          String?
+  conditionStatus   String?
+  quantity          Int      @default(1)
+  groupAssignmentId Int?
+  staffName         String?
+  assetType         String?
+  transactionTime   DateTime @default(now())
+
+  // Relations
+  asset Asset? @relation(fields: [assetId], references: [id])
+
+  @@map("asset_transactions")
+}
+
+// ==================== INVENTORY ====================
+
+model InventoryPeriod {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("planned")
+  createdBy   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  creator         User?             @relation(fields: [createdBy], references: [id])
+  groupAssignments GroupAssignment[]
+
+  @@map("inventory_periods")
+}
+
+model GroupAssignment {
+  id                Int      @id @default(autoincrement())
+  inventoryPeriodId Int?
+  groupName         String
+  staffName         String?
+  backupStaffName   String?
+  needsLaptop       Boolean  @default(false)
+  needsBarcode      Boolean  @default(false)
+  needsPen          Boolean  @default(false)
+  needsTape         Boolean  @default(false)
+  assignedBy        Int?
+  assignedAt        DateTime @default(now())
+  status            String   @default("pending")
+  notes             String?
+  laptopReturned    Boolean  @default(false)
+  barcodeReturned   Boolean  @default(false)
+  penReturned       Boolean  @default(false)
+  tapeReturned      Boolean  @default(false)
+  staffMembers      String   @default("[]") // JSON array as string
+  stt               String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  inventoryPeriod InventoryPeriod? @relation(fields: [inventoryPeriodId], references: [id])
+  assigner        User?            @relation(fields: [assignedBy], references: [id])
+  staffAssignments StaffAssignment[]
+
+  @@map("group_assignments")
+}
+
+model StaffAssignment {
+  id                Int      @id @default(autoincrement())
+  groupAssignmentId Int?
+  staffName         String
+  assetType         String
+  assignedTime      DateTime?
+  returnedTime      DateTime?
+  isAssigned        Boolean  @default(false)
+  isReturned        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  groupAssignment GroupAssignment? @relation(fields: [groupAssignmentId], references: [id])
+
+  @@map("staff_assignments")
+}
+
+// ==================== EMAIL TEMPLATES ====================
+
+model EmailTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String
+  subject   String
+  content   String
+  category  String   @default("general")
+  tags      String?
+  createdBy Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  creator User? @relation(fields: [createdBy], references: [id])
+
+  @@map("email_templates")
+}
+
+// ==================== NETWORK ====================
+
+model NetDevice {
+  id            Int      @id @default(autoincrement())
+  name          String
+  ip            String?
+  location      String?
+  description   String?
+  deviceType    String?  // server, modem, router, switch, ups, nvr, camera
+  status        String   @default("active")
+  company       String?
+  serialNumber  String?
+  modelDetails  String?
+  purchaseDate  String?
+  condition     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  cablesFrom NetCable[] @relation("CableFrom")
+  cablesTo   NetCable[] @relation("CableTo")
+
+  @@map("net_devices")
+}
+
+model NetCable {
+  id             Int      @id @default(autoincrement())
+  label          String
+  cableType      String?  // Cat6, Fiber, DAC, Power
+  fromDeviceId   Int?
+  toDeviceId     Int?
+  fromDeviceName String?
+  toDeviceName   String?
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  fromDevice NetDevice? @relation("CableFrom", fields: [fromDeviceId], references: [id])
+  toDevice   NetDevice? @relation("CableTo", fields: [toDeviceId], references: [id])
+
+  @@map("net_cables")
+}
+
+model NetTopology {
+  id        Int      @id @default(autoincrement())
+  content   String?
+  updatedAt DateTime @updatedAt
+
+  @@map("net_topology")
+}
+
+// ==================== SOLUTIONS ====================
+
+model SolutionDocument {
+  id          Int      @id @default(autoincrement())
+  solutionId  String   @unique
+  fileName    String
+  fileContent String
+  contentType String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("solution_documents")
 }
