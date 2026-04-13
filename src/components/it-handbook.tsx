@@ -765,7 +765,7 @@ export default function ITHandbook() {
               {editingCase ? 'Cập nhật thông tin case' : 'Điền thông tin để tạo case mới'}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
+          <div className="flex-1 overflow-y-auto pr-2">
             <div className="space-y-4 py-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
@@ -863,7 +863,7 @@ export default function ITHandbook() {
                 />
               </div>
             </div>
-          </ScrollArea>
+          </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCaseDialogOpen(false)}>
               Hủy
@@ -1058,7 +1058,7 @@ export default function ITHandbook() {
               {editingWorklog ? 'Cập nhật thông tin worklog' : 'Điền thông tin để tạo worklog mới'}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
+          <div className="flex-1 overflow-y-auto pr-2">
             <div className="space-y-4 py-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
@@ -1198,7 +1198,7 @@ export default function ITHandbook() {
                 />
               </div>
             </div>
-          </ScrollArea>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWorklogDialogOpen(false)}>
               Hủy
